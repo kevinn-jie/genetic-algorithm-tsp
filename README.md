@@ -1,4 +1,4 @@
-# genetic-algorithm-tsp
+# A Genetic Algorithm for the Traveling Salesman Problem
 
 A genetic algorithm for the traveling salesman problem.
 
