@@ -10,7 +10,11 @@ A genetic algorithm for the traveling salesman problem.
 | --- | --- |
 | ![Optimal Path](docs/single_tour_kroA100_run1_optimal.png) | ![Percent Error Per Generation](docs/single_convergence_kroA100_run1.png) |
 
+
+
 <br>
+
+
 
 ## Features
 
@@ -20,6 +24,7 @@ A genetic algorithm for the traveling salesman problem.
     * 2-node swap mutation
     * 2-opt local search with 16-nearest-neighbor lists
     * Elitism
+
 * Helper tools
     * Sort `EUC_2D` instances from TSPLIB95
     * Plot aggregate percent error vs. node count
@@ -29,7 +34,11 @@ A genetic algorithm for the traveling salesman problem.
     * Plot individual percent error vs. generation (convergence)
     * Plot individual instance, genetic algorithm tour, and optimal tour
 
+
+
 <br>
+
+
 
 ## Prerequisites
 
@@ -39,7 +48,11 @@ A genetic algorithm for the traveling salesman problem.
 * Python 3.14 (for helper tools)
 * Pip (for helper tools)
 
+
+
 <br>
+
+
 
 ## Running the Genetic Algorithm
 
@@ -87,7 +100,11 @@ A genetic algorithm for the traveling salesman problem.
 
 6. Find the results in `stdout/runs/<instance>/run<N>.txt`
 
+
+
 <br>
+
+
 
 ## Running the Helper Tools
 
@@ -131,7 +148,11 @@ A genetic algorithm for the traveling salesman problem.
 
 5. Find the plots as `.png` and `.svg` in `stdout/plots/`
 
+
+
 <br>
+
+
 
 ## Rationale and Results
 
