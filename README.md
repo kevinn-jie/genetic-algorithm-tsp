@@ -85,7 +85,7 @@ A genetic algorithm for the traveling salesman problem.
 4. Build in release mode; in VS Code, go to `Terminal` > `Run Task...` > `build (release)`, or from terminal in project root
 
     ```powershell
-    C:\msys64\ucrt64\bin\g++.exe -std=c++17 -O2 -fopenmp -static src\main.cpp src\algorithm.cpp src\instance.cpp -o build\main.exe
+    C:\msys64\ucrt64\bin\g++.exe -std=c++17 -O2 -fopenmp -static src\main.cpp src\algorithm.cpp src\instance.cpp -o bin\main.exe
     ```
 
 <br>
@@ -93,7 +93,7 @@ A genetic algorithm for the traveling salesman problem.
 5. Run; in VS Code, go to `Terminal` > `Run Task...` > `run (release)`, or from terminal in project root
 
     ```powershell
-    .\build\main.exe
+    .\bin\main.exe
     ```
 
 <br>
