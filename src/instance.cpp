@@ -1,19 +1,24 @@
-#include "instance.h"
-#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <new>
 #include <stdexcept>
 #include <string>
 
+#include "instance.h"
+#include <algorithm>
+
+/**
+ * @brief   Builds flat n * n distance matrix; precomputes all pairwise distances.
+ * @details Skipped if matrix exceeds MAX_MATRIX_BYTES or allocation fails;
+ *          empty matrix -> get_distance computes on the fly.
+ */
 void Instance::build_distance_matrix() {
     std::size_t matrix_size = static_cast<std::size_t>(dimension) * dimension;
-
     if (static_cast<long long>(matrix_size * sizeof(int)) > MAX_MATRIX_BYTES) {
         return;
     }
 
-    // note: allocation failure not fatal; empty matrix -> get_distance computes on the fly
+    // allocation failure not fatal; empty matrix -> get_distance computes on the fly
     try {
         distance_matrix.resize(matrix_size);
     }
@@ -23,7 +28,7 @@ void Instance::build_distance_matrix() {
         return;
     }
 
-    // note: symmetric distances; compute each pair once and mirror (halves build time)
+    // symmetric distances; compute each pair once and mirror (halves build time)
     for (int node1 = 0; node1 < dimension; ++node1) {
         distance_matrix[static_cast<std::size_t>(node1) * dimension + node1] = 0;
 
@@ -35,27 +40,30 @@ void Instance::build_distance_matrix() {
     }
 }
 
+/**
+ * @brief   Builds neighbor lists; nearest neighbor_count nodes per node for 2-opt.
+ * @details Partially sorts each node's (distance, node) pairs; rank 0 = nearest.
+ */
 void Instance::build_neighbor_lists() {
     neighbor_count = std::min(NEIGHBOR_COUNT, dimension - 1);
     neighbor_lists.resize(static_cast<std::size_t>(dimension) * neighbor_count);
 
-    // note: rows independent; parallel build (n * n distance reads, ~1 s for d18512 single-threaded)
+    // rows independent; parallel build (n * n distance reads, ~1 s for d18512 single-threaded)
     #pragma omp parallel
     {
-        // note: one buffer per thread, reused across rows
+        // one buffer per thread, reused across rows
         std::vector<std::pair<int, int>> candidates(dimension - 1);
 
         #pragma omp for
         for (int node1 = 0; node1 < dimension; ++node1) {
             int count = 0;
-
             for (int node2 = 0; node2 < dimension; ++node2) {
                 if (node2 != node1) {
                     candidates[count++] = {get_distance(node1, node2), node2};
                 }
             }
 
-            // note: (distance, node) pairs; ties broken by node number -> deterministic lists
+            // (distance, node) pairs; ties broken by node number -> deterministic lists
             std::partial_sort(candidates.begin(), candidates.begin() + neighbor_count, candidates.end());
 
             for (int rank = 0; rank < neighbor_count; ++rank) {
@@ -67,14 +75,12 @@ void Instance::build_neighbor_lists() {
 
 std::string Instance::get_header(const std::string& line) {
     std::size_t colon = line.find(':');
-
     if (colon == std::string::npos) {
         return "";
     }
 
     std::size_t start = line.find_first_not_of(" \t", colon + 1);
     std::size_t end = line.find_last_not_of(" \t\r");
-
     if (start == std::string::npos) {
         return "";
     }
@@ -85,17 +91,14 @@ std::string Instance::get_header(const std::string& line) {
 std::optional<long long> Instance::find_optimal_fitness(const std::string& optimality_file, const std::string& instance_name) {
     std::ifstream file(optimality_file);
     std::string line;
-
     while (std::getline(file, line)) {
         std::size_t colon = line.find(':');
-
         if (colon == std::string::npos) {
             continue;
         }
 
         std::string key = line.substr(0, colon);
         key.erase(key.find_last_not_of(" \t") + 1);
-
         if (key == instance_name) {
             return std::stoll(get_header(line));
         }
@@ -104,9 +107,13 @@ std::optional<long long> Instance::find_optimal_fitness(const std::string& optim
     return std::nullopt;
 }
 
+/**
+ * @brief   Loads TSPLIB instance from .tsp file.
+ * @details Parses NAME, DIMENSION, and NODE_COORD_SECTION; looks up known optimum by filename.
+ *          Throws if file cannot be opened, has no nodes, or DIMENSION mismatches node count.
+ */
 Instance Instance::get_instance(const std::string& instance_file, const std::string& optimality_file) {
     std::ifstream file(instance_file);
-
     if (!file.is_open()) {
         throw std::runtime_error("error: could not open file: " + instance_file);
     }
@@ -114,8 +121,8 @@ Instance Instance::get_instance(const std::string& instance_file, const std::str
     std::string name;
     int expected_dimension = -1;
     std::vector<Node> nodes;
-    std::string line;
 
+    std::string line;
     while (std::getline(file, line)) {
         if (line.rfind("NAME", 0) == 0) {
             name = get_header(line);
@@ -127,7 +134,6 @@ Instance Instance::get_instance(const std::string& instance_file, const std::str
         
         else if (line.rfind("NODE_COORD_SECTION") != std::string::npos) {
             Node node;
-
             while (file >> node.number >> node.x_coord >> node.y_coord) {
                 nodes.push_back(node);
             }
@@ -150,8 +156,9 @@ Instance Instance::get_instance(const std::string& instance_file, const std::str
 
     file.close();
     
-    // note: lookup by filename, not NAME header; linhp318.tsp header says lin318 (wrong optimum)
+    // lookup by filename, not NAME header; linhp318.tsp header says lin318 (wrong optimum)
     std::string instance_name = std::filesystem::path(instance_file).stem().string();
     std::optional<long long> optimal_fitness = find_optimal_fitness(optimality_file, instance_name);
+
     return Instance(std::move(name), std::move(nodes), optimal_fitness);
 }

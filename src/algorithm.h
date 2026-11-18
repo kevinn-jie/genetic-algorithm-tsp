@@ -44,7 +44,7 @@ std::vector<std::vector<int>> create_population(int dimension, std::mt19937& rng
 long long compute_fitness(const std::vector<int>& tour, const Instance& instance);
 
 /**
- * @brief   Finds elite; index of fittest tour in population.
+ * @brief Finds elite; index of fittest tour in population.
  */
 int run_elitism(const std::vector<long long>& fitnesses);
 
