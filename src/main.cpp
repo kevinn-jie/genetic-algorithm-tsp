@@ -88,7 +88,7 @@ double get_seconds_since(std::chrono::steady_clock::time_point start) {
 }
 
 int main(int, char** argv) {
-    // note: project root = parent of executable's folder (build/); paths work from any working directory
+    // note: project root = parent of executable's folder (bin/); paths work from any working directory
     std::filesystem::path root_directory = std::filesystem::absolute(argv[0]).parent_path().parent_path();
     std::filesystem::path instance_directory = root_directory / "res" / "instances" / "euc2d";
     std::filesystem::path optimality_file = root_directory / "res" / "optimal_values.txt";
