@@ -1,9 +1,19 @@
-#include "algorithm.h"
-#include <algorithm>
+/**
+ * @file  algorithm.cpp
+ * @brief Genetic algorithm with 2-opt local search for the traveling salesman problem.
+ *        random initial population -> fitness = tour length
+ *        each generation: elitism -> tournament selection -> order crossover -> swap mutation -> 2-opt
+ *        offspring built in parallel; elite carried over, then refined with 2-opt
+ *        stops at max generations, stagnation, or known optimum
+ */
+
 #include <chrono>
 #include <deque>
 #include <numeric>
 #include <utility>
+
+#include "algorithm.h"
+#include <algorithm>
 
 std::vector<std::vector<int>> create_population(int dimension, std::mt19937& rng) {
     std::vector<std::vector<int>> population(POPULATION_SIZE, std::vector<int>(dimension));
@@ -19,7 +29,6 @@ std::vector<std::vector<int>> create_population(int dimension, std::mt19937& rng
 long long compute_fitness(const std::vector<int>& tour, const Instance& instance) {
     long long fitness = 0;
     int dimension = static_cast<int>(tour.size());
-
     for (int position = 0; position < dimension - 1; ++position) {
         fitness += instance.get_distance(tour[position], tour[position + 1]);
     }
@@ -34,11 +43,10 @@ int run_elitism(const std::vector<long long>& fitnesses) {
 
 int run_selection(const std::vector<long long>& fitnesses, std::mt19937& rng) {
     std::uniform_int_distribution<int> pick(0, static_cast<int>(fitnesses.size()) - 1);
-    int elite = pick(rng);
 
+    int elite = pick(rng);
     for (int i = 1; i < SELECTION_SIZE; ++i) {
         int contender = pick(rng);
-
         if (fitnesses[contender] < fitnesses[elite]) {
             elite = contender;
         }
@@ -56,9 +64,9 @@ std::vector<int> run_crossover(const std::vector<int>& parent1, const std::vecto
 
     int dimension = static_cast<int>(parent1.size());
     std::uniform_int_distribution<int> pick(0, dimension - 1);
+
     int node1 = pick(rng);
     int node2 = pick(rng);
-
     while (node1 == node2) {
         node2 = pick(rng);
     }
@@ -69,17 +77,15 @@ std::vector<int> run_crossover(const std::vector<int>& parent1, const std::vecto
 
     std::vector<int> offspring(dimension);
 
-    // note: in_slice[node] is true if that node was copied from parent1's slice
+    // in_slice[node] is true if node was copied from parent1's slice
     std::vector<bool> in_slice(dimension, false);
-
     for (int position = node1; position < node2; ++position) { 
         offspring[position] = parent1[position];
         in_slice[parent1[position]] = true;
     }
 
-    // note: allows the program to iterate through parent2 once, skipping nodes copied from the slice
+    // allows program to iterate through parent2 once, skipping nodes copied from slice
     int parent2_position = 0;
-
     for (int offspring_position = 0; offspring_position < dimension; ++offspring_position) {
         if (offspring_position >= node1 && offspring_position < node2) {
             continue;
@@ -95,19 +101,18 @@ std::vector<int> run_crossover(const std::vector<int>& parent1, const std::vecto
     return offspring;
 }
 
-// note: mutates in place; copying is unnecessary
+// mutates in place; copying is unnecessary
 void run_mutation(std::vector<int>& tour, std::mt19937& rng) {
     std::uniform_real_distribution<double> chance(0.0, 1.0);
-
     if (chance(rng) >= MUTATION_RATE) {
         return;
     }
 
     int dimension = static_cast<int>(tour.size());
     std::uniform_int_distribution<int> pick(0, dimension - 1);
+
     int position1 = pick(rng);
     int position2 = pick(rng);
-
     while (position1 == position2) {
         position2 = pick(rng);
     }
@@ -118,22 +123,21 @@ void run_mutation(std::vector<int>& tour, std::mt19937& rng) {
 std::vector<int> make_offspring(const std::vector<std::vector<int>>& population, const std::vector<long long>& fitnesses, std::mt19937& rng) {
     int parent1 = run_selection(fitnesses, rng);
     int parent2 = run_selection(fitnesses, rng);
-
     while (parent2 == parent1) {
         parent2 = run_selection(fitnesses, rng);
     }
 
     std::vector<int> offspring = run_crossover(population[parent1], population[parent2], rng);
     run_mutation(offspring, rng);
+    
     return offspring;
 }
 
-// note: reverses tour positions from..to (cyclic, inclusive), keeping position in sync
-// note: reverses the complement instead when shorter; same cycle, half the work on average
+// reverses tour positions from..to (cyclic, inclusive), keeping position in sync
+// reverses complement instead when shorter; same cycle, half work on average
 void reverse_segment(std::vector<int>& tour, std::vector<int>& position, int from, int to) {
     int dimension = static_cast<int>(tour.size());
     int length = (to - from + dimension) % dimension + 1;
-
     if (2 * length > dimension) {
         int complement_from = (to + 1) % dimension;
         to = (from - 1 + dimension) % dimension;
@@ -144,6 +148,7 @@ void reverse_segment(std::vector<int>& tour, std::vector<int>& position, int fro
     for (int swap = 0; swap < length / 2; ++swap) {
         int node1 = tour[from];
         int node2 = tour[to];
+
         tour[from] = node2;
         position[node2] = from;
         tour[to] = node1;
@@ -160,12 +165,12 @@ void activate_node(int node, std::deque<int>& active_nodes, std::vector<bool>& i
     }
 }
 
-// note: tries one improving 2-opt move involving node; true if a move was applied
-// note: move removes (node, adjacent) + (candidate, candidate_adjacent), adds (node, candidate) + (adjacent, candidate_adjacent)
+// tries one improving 2-opt move involving node; true if a move was applied
+// move removes (node, adjacent) + (candidate, candidate_adjacent), adds (node, candidate) + (adjacent, candidate_adjacent)
 bool improve_node(int node, std::vector<int>& tour, std::vector<int>& position, const Instance& instance, std::deque<int>& active_nodes, std::vector<bool>& is_active) {
     int dimension = static_cast<int>(tour.size());
 
-    // note: direction 0 = successor side, 1 = predecessor side; both needed to find every candidate move
+    // direction 0 = successor side, 1 = predecessor side; both needed to find every candidate move
     for (int direction = 0; direction < 2; ++direction) {
         int step = direction == 0 ? 1 : dimension - 1;
         int adjacent = tour[(position[node] + step) % dimension];
@@ -175,14 +180,14 @@ bool improve_node(int node, std::vector<int>& tour, std::vector<int>& position, 
             int candidate = instance.get_neighbor(node, rank);
             int candidate_distance = instance.get_distance(node, candidate);
 
-            // note: new edge must be shorter than the edge it replaces at node; sorted list -> no later candidate qualifies
+            // new edge must be shorter than edge it replaces at node; sorted list -> no later candidate qualifies
             if (candidate_distance >= adjacent_distance) {
                 break;
             }
 
             int candidate_adjacent = tour[(position[candidate] + step) % dimension];
 
-            // note: skip moves sharing an edge (degenerate, no change)
+            // skip moves sharing edge (degenerate, no change)
             if (candidate == adjacent || candidate_adjacent == node) {
                 continue;
             }
@@ -199,11 +204,12 @@ bool improve_node(int node, std::vector<int>& tour, std::vector<int>& position, 
                     reverse_segment(tour, position, position[node], position[candidate_adjacent]);
                 }
 
-                // note: edges changed at these 4 nodes; recheck them
+                // edges changed at 4 nodes; recheck them
                 activate_node(node, active_nodes, is_active);
                 activate_node(adjacent, active_nodes, is_active);
                 activate_node(candidate, active_nodes, is_active);
                 activate_node(candidate_adjacent, active_nodes, is_active);
+
                 return true;
             }
         }
@@ -212,12 +218,12 @@ bool improve_node(int node, std::vector<int>& tour, std::vector<int>& position, 
     return false;
 }
 
-// note: neighbor-list 2-opt with don't-look bits; ~n * k checks instead of ~n^2 / 2 per pass
-// note: active queue = nodes without don't-look bit; only nodes near changed edges get rechecked
+// neighbor-list 2-opt with don't-look bits; ~n * k checks instead of ~n^2 / 2 per pass
+// active queue = nodes without don't-look bit; only nodes near changed edges get rechecked
 void run_two_opt(std::vector<int>& tour, const Instance& instance) {
     int dimension = static_cast<int>(tour.size());
 
-    // note: position[node] = index in tour; O(1) lookup of a candidate's tour neighbors
+    // position[node] = index in tour; O(1) lookup of a candidate's tour neighbors
     std::vector<int> position(dimension);
 
     for (int index = 0; index < dimension; ++index) {
@@ -226,7 +232,6 @@ void run_two_opt(std::vector<int>& tour, const Instance& instance) {
 
     std::deque<int> active_nodes(tour.begin(), tour.end());
     std::vector<bool> is_active(dimension, true);
-
     while (!active_nodes.empty()) {
         int node = active_nodes.front();
         active_nodes.pop_front();
@@ -237,12 +242,11 @@ void run_two_opt(std::vector<int>& tour, const Instance& instance) {
 
 std::optional<double> compute_percent_error(long long fitness, const Instance& instance) {
     std::optional<long long> optimal_fitness = instance.get_optimal_fitness();
-
     if (!optimal_fitness) {
         return std::nullopt;
     }
 
-    // note: 100.0 forces floating-point division
+    // 100.0 forces floating-point division
     return (fitness - *optimal_fitness) * 100.0 / *optimal_fitness;
 }
 
@@ -253,9 +257,10 @@ double get_elapsed_time(std::chrono::steady_clock::time_point start) {
 RunResult run_genetic_algorithm(const Instance& instance, std::mt19937& rng) {
     std::chrono::steady_clock::time_point generation_start = std::chrono::steady_clock::now();
 
-    // note: kept in memory, written by caller after run; no file I/O inside timed loop
+    // kept in memory, written by caller after run; no file I/O inside timed loop
     std::vector<Generation> generations;
     std::vector<std::vector<int>> population = create_population(instance.get_dimension(), rng);
+    
     std::vector<long long> fitnesses;
     fitnesses.reserve(POPULATION_SIZE);
 
@@ -269,8 +274,8 @@ RunResult run_genetic_algorithm(const Instance& instance, std::mt19937& rng) {
     generations.push_back({0, get_elapsed_time(generation_start), elite_fitness});
     int stagnant_generations = 0;
 
-    // note: allocated once, swapped with population each generation; no per-generation rebuild
-    // note: pre-sized; each thread writes only its own slot (push_back not thread-safe)
+    // allocated once, swapped with population each generation; no per-generation rebuild
+    // pre-sized; each thread writes only its own slot (push_back not thread-safe)
     std::vector<std::vector<int>> next_population(POPULATION_SIZE);
     std::vector<long long> next_fitnesses(POPULATION_SIZE);
     std::vector<std::mt19937::result_type> seeds(POPULATION_SIZE);
@@ -278,18 +283,18 @@ RunResult run_genetic_algorithm(const Instance& instance, std::mt19937& rng) {
     for (int generation = 1; generation <= MAX_GENERATIONS; ++generation) {
         generation_start = std::chrono::steady_clock::now();
         
-        // note: slot 0 = elite (elitism); slots 1+ = new offspring
+        // slot 0 = elite (elitism); slots 1+ = new offspring
         next_population[0] = elite_tour;
         next_fitnesses[0] = elite_fitness;
 
-        // note: one generator per offspring; shared mt19937 across threads = data race
-        // note: seeds drawn serially before parallel loop; same seed = same run, regardless of thread count
+        // one generator per offspring; shared mt19937 across threads = data race
+        // seeds drawn serially before parallel loop; same seed = same run, regardless of thread count
         for (int i = 1; i < POPULATION_SIZE; ++i) {
             seeds[i] = rng();
         }
 
-        // note: offspring independent, shared data read-only; parallel without locks
-        // note: dynamic scheduling; 2-opt time varies per offspring
+        // offspring independent, shared data read-only; parallel without locks
+        // dynamic scheduling; 2-opt time varies per offspring
         #pragma omp parallel for schedule(dynamic)
         for (int i = 1; i < POPULATION_SIZE; ++i) {
             std::mt19937 offspring_rng(seeds[i]);
@@ -300,8 +305,8 @@ RunResult run_genetic_algorithm(const Instance& instance, std::mt19937& rng) {
 
         population.swap(next_population);
         fitnesses.swap(next_fitnesses);
-        elite = run_elitism(fitnesses);
 
+        elite = run_elitism(fitnesses);
         if (fitnesses[elite] < elite_fitness) {
             elite_tour = population[elite];
             elite_fitness = fitnesses[elite];
@@ -316,7 +321,7 @@ RunResult run_genetic_algorithm(const Instance& instance, std::mt19937& rng) {
         elite_fitness = compute_fitness(elite_tour, instance);
         generations.push_back({generation, get_elapsed_time(generation_start), elite_fitness});
 
-        // note: empty optional compares false; no known optimum -> stagnation stop only
+        // empty optional compares false; no known optimum -> stagnation stop only
         if (stagnant_generations >= CONVERGENCE_GENERATIONS || elite_fitness == instance.get_optimal_fitness()) {
             break;
         }
