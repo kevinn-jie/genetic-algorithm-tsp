@@ -1,9 +1,9 @@
 /**
  * @file  algorithm.cpp
- * @brief Genetic algorithm with 2-opt local search for the traveling salesman problem.
+ * @brief Genetic algorithm with 2-opt local search for traveling salesman problems.
  *        random initial population -> fitness = tour length
  *        each generation: elitism -> tournament selection -> order crossover -> swap mutation -> 2-opt
- *        offspring built in parallel; elite carried over, then refined with 2-opt
+ *        offspring built; elite preserved, refined with 2-opt
  *        stops at max generations, stagnation, or known optimum
  */
 
@@ -55,6 +55,13 @@ int run_selection(const std::vector<long long>& fitnesses, std::mt19937& rng) {
     return elite;
 }
 
+/**
+ * @brief   Order crossover (OX); combines two parents into one offspring.
+ * @details With probability of 1 - CROSSOVER_RATE, returns random parent unchanged.
+ *          Otherwise, copies random slice of parent1 into same positions,
+ *          then fills remaining positions with parent2's nodes in order,
+ *          skipping nodes already in slice.
+ */
 std::vector<int> run_crossover(const std::vector<int>& parent1, const std::vector<int>& parent2, std::mt19937& rng) {
     std::uniform_real_distribution<double> chance(0.0, 1.0);
 
@@ -101,7 +108,11 @@ std::vector<int> run_crossover(const std::vector<int>& parent1, const std::vecto
     return offspring;
 }
 
-// mutates in place; copying is unnecessary
+/**
+ * @brief   Swap mutation; exchanges two random nodes in tour.
+ * @details With probability of MUTATION_RATE, swaps nodes at two distinct random positions.
+ *          Mutates in place; copying is unnecessary.
+ */
 void run_mutation(std::vector<int>& tour, std::mt19937& rng) {
     std::uniform_real_distribution<double> chance(0.0, 1.0);
     if (chance(rng) >= MUTATION_RATE) {
@@ -133,8 +144,12 @@ std::vector<int> make_offspring(const std::vector<std::vector<int>>& population,
     return offspring;
 }
 
-// reverses tour positions from..to (cyclic, inclusive), keeping position in sync
-// reverses complement instead when shorter; same cycle, half work on average
+/**
+ * @brief   Reverses tour segment; applies a 2-opt move.
+ * @details Swaps nodes inward from both ends of segment, updating position for each.
+ *          Reverses tour positions from..to (cyclic, inclusive), keeping position in sync.
+ *          Reverses complement instead when shorter; same cycle, half work on average.
+ */
 void reverse_segment(std::vector<int>& tour, std::vector<int>& position, int from, int to) {
     int dimension = static_cast<int>(tour.size());
     int length = (to - from + dimension) % dimension + 1;
@@ -165,8 +180,13 @@ void activate_node(int node, std::deque<int>& active_nodes, std::vector<bool>& i
     }
 }
 
-// tries one improving 2-opt move involving node; true if a move was applied
-// move removes (node, adjacent) + (candidate, candidate_adjacent), adds (node, candidate) + (adjacent, candidate_adjacent)
+/**
+ * @brief   Tries one improving 2-opt move involving node; true if a move was applied.
+ * @details Checks node's nearest neighbors as candidates, on both successor and predecessor sides applies first move with positive gain,
+ *          then reactivates its 4 endpoint nodes.
+ *          Move removes (node, adjacent) + (candidate, candidate_adjacent),
+ *          adds (node, candidate) + (adjacent, candidate_adjacent).
+ */
 bool improve_node(int node, std::vector<int>& tour, std::vector<int>& position, const Instance& instance, std::deque<int>& active_nodes, std::vector<bool>& is_active) {
     int dimension = static_cast<int>(tour.size());
 
@@ -218,8 +238,13 @@ bool improve_node(int node, std::vector<int>& tour, std::vector<int>& position, 
     return false;
 }
 
-// neighbor-list 2-opt with don't-look bits; ~n * k checks instead of ~n^2 / 2 per pass
-// active queue = nodes without don't-look bit; only nodes near changed edges get rechecked
+/**
+ * @brief   Neighbor-list 2-opt with don't-look bits; improves tour to local optimum.
+ * @details Starts with all nodes active; improves each active node until queue is empty.
+ *          ~n * k checks instead of ~n^2 / 2 per pass.
+ *          Active queue = nodes without don't-look bit; only nodes near changed edges get rechecked.
+ *          Mutates in place.
+ */
 void run_two_opt(std::vector<int>& tour, const Instance& instance) {
     int dimension = static_cast<int>(tour.size());
 
