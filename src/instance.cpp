@@ -24,7 +24,7 @@ void Instance::build_distance_matrix() {
         return;
     }
 
-    // allocation failure not fatal; empty matrix -> get_distance computes on the fly
+    /* allocation failure not fatal; empty matrix -> get_distance computes on the fly */
     try {
         distance_matrix.resize(matrix_size);
     }
@@ -34,7 +34,7 @@ void Instance::build_distance_matrix() {
         return;
     }
 
-    // symmetric distances; compute each pair once and mirror (halves build time)
+    /* symmetric distances; compute each pair once and mirror (halves build time) */
     for (int node1 = 0; node1 < dimension; ++node1) {
         distance_matrix[static_cast<std::size_t>(node1) * dimension + node1] = 0;
 
@@ -54,10 +54,10 @@ void Instance::build_neighbor_lists() {
     neighbor_count = std::min(NEIGHBOR_COUNT, dimension - 1);
     neighbor_lists.resize(static_cast<std::size_t>(dimension) * neighbor_count);
 
-    // rows independent; parallel build (n * n distance reads, ~1 s for d18512 single-threaded)
+    /* rows independent; parallel build (n * n distance reads, ~1 s for d18512 single-threaded) */
     #pragma omp parallel
     {
-        // one buffer per thread, reused across rows
+        /* one buffer per thread, reused across rows */
         std::vector<std::pair<int, int>> candidates(dimension - 1);
 
         #pragma omp for
@@ -69,7 +69,7 @@ void Instance::build_neighbor_lists() {
                 }
             }
 
-            // (distance, node) pairs; ties broken by node number -> deterministic lists
+            /* (distance, node) pairs; ties broken by node number -> deterministic lists */
             std::partial_sort(candidates.begin(), candidates.begin() + neighbor_count, candidates.end());
 
             for (int rank = 0; rank < neighbor_count; ++rank) {
@@ -162,7 +162,7 @@ Instance Instance::get_instance(const std::string& instance_file, const std::str
 
     file.close();
     
-    // lookup by filename, not NAME header; linhp318.tsp header says lin318 (wrong optimum)
+    /* lookup by filename, not NAME header; linhp318.tsp header says lin318 (wrong optimum) */
     std::string instance_name = std::filesystem::path(instance_file).stem().string();
     std::optional<long long> optimal_fitness = find_optimal_fitness(optimality_file, instance_name);
 

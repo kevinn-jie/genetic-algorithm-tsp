@@ -11,16 +11,16 @@
 
 #include "instance.h"
 
-// for d18512, 10000 seems to be a good upper-bound; many runs stop between 6000-8000 generations
+/* for d18512, 10000 seems to be a good upper-bound; many runs stop between 6000-8000 generations */
 const int MAX_GENERATIONS = 10000;
 
-// less than 200 results in premature convergence
+/* less than 200 results in premature convergence */
 const int CONVERGENCE_GENERATIONS = 200;
 const int POPULATION_SIZE = 200;
 const int SELECTION_SIZE = 7;
 const double CROSSOVER_RATE = 0.85;
 
-// having guaranteed mutation resulted in better, consistent tour diversity
+/* having guaranteed mutation resulted in better, consistent tour diversity */
 const double MUTATION_RATE = 1.0;
 
 struct Generation {
@@ -29,7 +29,7 @@ struct Generation {
     long long elite_fitness;
 };
 
-// returned instead of printed; caller decides where output goes (file write happens after timing stops)
+/* returned instead of printed; caller decides where output goes (file write happens after timing stops) */
 struct RunResult {
     long long elite_fitness;
     std::vector<int> elite_tour;
