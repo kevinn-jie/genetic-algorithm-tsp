@@ -1,3 +1,8 @@
+/**
+ * @file  algorithm.h
+ * @brief Genetic algorithm parameters, run result types, and algorithm step prototypes.
+ */
+
 #pragma once
 
 #include <optional>

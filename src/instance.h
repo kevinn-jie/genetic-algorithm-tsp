@@ -1,3 +1,8 @@
+/**
+ * @file  instance.h
+ * @brief TSPLIB EUC_2D instance; node coordinates, distance lookup, neighbor lists, and known optimum.
+ */
+
 #pragma once
 #include <cmath>
 #include <optional>

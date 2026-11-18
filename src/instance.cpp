@@ -1,3 +1,9 @@
+/**
+ * @file  instance.cpp
+ * @brief TSPLIB instance loading and precomputation.
+ *        parse .tsp file -> look up known optimum -> build distance matrix -> build neighbor lists
+ */
+
 #include <filesystem>
 #include <fstream>
 #include <new>
