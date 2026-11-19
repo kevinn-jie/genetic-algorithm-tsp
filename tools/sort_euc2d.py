@@ -1,14 +1,15 @@
+import pathlib
 import shutil
-from pathlib import Path
 
 import tsplib95
 
 
-BASE_DIR: Path = Path(__file__).resolve().parent.parent
+BASE_DIR: pathlib.Path = pathlib.Path(__file__).resolve().parent.parent
 
-# note: paths were changed
-TSP_DIR: Path = BASE_DIR / "res" / "instances" / "other"
-EUC2D_DIR: Path = BASE_DIR / "res" / "instances" / "euc2d"
+# paths were changed
+TSP_DIR: pathlib.Path = BASE_DIR / "res" / "instances" / "other"
+EUC2D_DIR: pathlib.Path = BASE_DIR / "res" / "instances" / "euc2d"
+
 
 if __name__ == "__main__":
     for item in TSP_DIR.iterdir():
